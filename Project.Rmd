@@ -1,0 +1,169 @@
+---
+title: "Breast Cancer Proteogenomics"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+#import datasets
+library(readr)
+library(ggplot2)
+proteomes <- read_csv("77_cancer_proteomes_CPTAC_itraq.csv")
+clinical_data <- read_csv("clinical_data_breast_cancer.csv")
+p50 <- read_csv("PAM50_proteins.csv")
+
+
+#clean and split data
+dim(proteomes)
+dim(clinical_data)
+dim(p50)
+write.csv(clinical_data, "clinical_updated")
+clinical_updated <- read_csv("clinical_updated")
+temp <- list()
+for (id in clinical_updated$`Complete TCGA ID`) {
+  clinical_updated$`Complete TCGA ID`[clinical_updated$`Complete TCGA ID` == id] <- substr(id, start = 6, stop = 12)
+}
+names <- c()
+proNames = colnames(proteomes)
+proNames[3:86] <- substring(proNames[3:86], first = 0, last = 7)
+proCopy <- proteomes
+colnames(proCopy)[3:86] <- proNames[3:86]
+clinical_updated$Avg <- clinical_updated$Gender
+clinical_split <- clinical_updated
+proSplit <- proCopy
+clinical_split <- clinical_split[clinical_split$`PAM50 mRNA` %in% c("Luminal A", "Luminal B"),]
+clinical_splitA <- clinical_split[clinical_split$`PAM50 mRNA` %in% c("Luminal A"),]
+clinical_splitB <- clinical_split[clinical_split$`PAM50 mRNA` %in% c("Luminal B"),]
+#View(clinical_splitB)
+clinical_split$X1 <- NULL
+#View(clinical_split)
+proSplitA <- proSplit
+proSplitB <- proSplit
+names(proCopy)[4:86]
+for (id in names(proCopy)[4:86]) {
+  if (!(id %in% clinical_split$`Complete TCGA ID`)) {
+    proSplit[[id]] <- NULL
+    proSplitA[[id]] <- NULL
+    proSplitB[[id]] <- NULL
+    next
+  }
+  temp <- clinical_split[clinical_split$`Complete TCGA ID` == id,]
+  if (temp$`PAM50 mRNA` == "Luminal B") {
+    proSplitA[[id]] <- NULL
+  } else if (temp$`PAM50 mRNA` == "Luminal A") {
+    proSplitB[[id]] <- NULL
+  }
+}
+#View(proSplit)
+#View(proSplitA)
+#View(proSplitB)
+#View(clinical_split)
+#u <- union(colnames(proSplit[4:51]), row.names(clinical_split$`Complete TCGA ID`))
+
+#clinical_split <- clinical_split[clinical_split$`Complete TCGA ID` %in% u,]
+#View(clinical_split)
+#View(proSplit)
+
+#H_o = u_a = u_b
+#H_a = u_a != u_b
+n <- length(row.names(proSplit))
+
+clinical_split <- clinical_split[order(clinical_split$`Complete TCGA ID`),]
+clinical_splitA <- clinical_splitA[order(clinical_splitA$`Complete TCGA ID`),]
+clinical_splitB <- clinical_splitB[order(clinical_splitB$`Complete TCGA ID`),]
+#iew(clinical_splitA)
+#View(clinical_splitB)
+#View(proSplit)
+proSplit <- proSplit[,order(colnames(proSplit))]
+proSplitA <- proSplitA[,order(colnames(proSplitA))]
+proSplitB <- proSplitB[,order(colnames(proSplitB))]
+l <- as.numeric(as.vector(proSplit[1, 1:49]))
+l
+la <- as.numeric(as.vector(proSplitA[1, 1:26]))
+lb <- as.numeric(as.vector(proSplitB[1, 1:25]))
+#View(proSplitA)
+#View(proSplitB)
+copy <- proSplit
+#n <- length(l)
+#z.score <- qt(0.95, df=n-1)
+#z.score
+#s <- apply(l, 1, sd)
+#length(l)
+#mean <- rowMeans(l)
+#t = (mean - 0) / (s/sqrt(n))
+#t
+#p = 2*pt(t, df=n-1)
+#p
+
+#View(la)
+# factor(clinical_splitA$`PAM50 mRNA`)
+length(factor(clinical_splitA$`PAM50 mRNA`))
+length(la)
+vec <- c()
+for (id in clinical_splitA$`Complete TCGA ID`) {
+  if (!(id %in% colnames(proSplitA))) {
+    vec <- c(vec, id)
+    #print(id)
+  }
+}
+vec
+vec2 <- c()
+for (id in clinical_splitB$`Complete TCGA ID`) {
+  if (!(id %in% colnames(proSplitB))) {
+    vec2 <- c(vec2, id)
+    #print(id)
+  }
+}
+print("VEC2")
+vec2
+#t.test(prot ~ factor(type))
+#colnames(proSplitA)
+clinical_splitA$`Complete TCGA ID`
+toDel <- c("A2-A0T7", "A2-A0YI", "A2-A0YL", "A7-A0CD", "BH-A0HK", "BH-A0HP")
+toDel2 <- c("A8-A08G", "A8-A09I", "AN-A0AS", "AR-A0TY", "BH-A0BZ", "BH-A0C0", "C8-A12W", "D8-A13Y", "E2-A10A")
+length(clinical_split$`Complete TCGA ID`)
+clinical_split = clinical_split[!(clinical_split$`Complete TCGA ID` %in% toDel),]
+clinical_split = clinical_split[!(clinical_split$`Complete TCGA ID` %in% toDel2),]
+#length(clinical_split$`Complete TCGA ID`)
+#length(proSplit)
+#View(clinical_splitA)
+la <- as.numeric(as.vector(proSplit[1, 1:47]))
+#View(la)
+t.test(la ~ factor(clinical_split$`PAM50 mRNA`))
+pval <- c()
+for (x in 1:length(proSplit$`A2-A0EV`)) {
+  l = as.numeric(as.vector(proSplit[x, 1:47]))
+  temp <- t.test(l ~ factor(clinical_split$`PAM50 mRNA`))$p.val
+  pval <- c(pval, temp)
+}
+
+# Sig if P-val < 0.05 / # proteins tested    12533
+#View(pval)
+plot(la ~ factor(clinical_split$`PAM50 mRNA`))
+sigp <- c()
+index <- c()
+symbol <- c()
+for (x in pval) {
+  if (x < (0.005)) {
+    sigp <- c(sigp, x)
+    print(which(pval == x))
+    index <- c(index, which(pval == x))
+    symbol <- c(symbol, proSplit$gene_symbol[which(pval==x)])
+  }
+}
+sigp <- cbind(symbol,sigp)
+sigp <- na.omit(sigp)
+sigp.df <- as.data.frame(sigp)
+row.names(sigp.df) <- sigp.df$sigp
+sigp.df <- sigp.df[order(sigp.df$sigp),]
+#sigp.df <- sigp.df[,2:3]
+View(sigp.df)
+sigp_matrix <- data.matrix(sigp.df)
+pheatmap <- heatmap(sigp_matrix, scale="column", margins=c(10,10))
+
+```
